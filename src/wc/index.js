@@ -12,15 +12,31 @@ const getLineCount = (filePath) => {
   const lines = fileContent.split("\n");
   return lines.length;
 };
+const getWordCount = (filePath) => {
+  const fileContent = fs.readFileSync(filePath, "utf8");
+  const words = fileContent.split(/\s+/).filter(Boolean);
+  return words.length;
+};
+
+const getCharCount = (filePath) => {
+  const fileContent = fs.readFileSync(filePath, "utf8");
+  return [...fileContent].length;
+};
 
 const displayUsage = () => {
-  console.log("Usage: -c|-l <file>");
+  console.log("Usage: -c|-l|-w|-m <file>");
 };
 
 const main = () => {
   const args = process.argv.slice(2);
 
-  if (args.length !== 2 || (args[0] !== "-c" && args[0] !== "-l")) {
+  if (
+    args.length !== 2 ||
+    (args[0] !== "-c" &&
+      args[0] !== "-l" &&
+      args[0] !== "-w" &&
+      args[0] !== "-m")
+  ) {
     displayUsage();
     process.exit(1);
   }
@@ -39,6 +55,12 @@ const main = () => {
   } else if (option === "-l") {
     const lineCount = getLineCount(filePath);
     console.log(`${lineCount} ${path.basename(filePath)}`);
+  } else if (option === "-w") {
+    const wordCount = getWordCount(filePath);
+    console.log(`${wordCount} ${path.basename(filePath)}`);
+  } else if (option === "-m") {
+    const charCount = getCharCount(filePath);
+    console.log(`${charCount} ${path.basename(filePath)}`);
   } else {
     throw new Error("Invalid option");
   }
