@@ -30,19 +30,13 @@ const displayUsage = () => {
 const main = () => {
   const args = process.argv.slice(2);
 
-  if (
-    args.length !== 2 ||
-    (args[0] !== "-c" &&
-      args[0] !== "-l" &&
-      args[0] !== "-w" &&
-      args[0] !== "-m")
-  ) {
+  if (args.length === 0 || args.length > 2) {
     displayUsage();
     process.exit(1);
   }
 
-  const filePath = args[1];
-  const option = args[0];
+  const option = args.length === 2 ? args[0] : "-default";
+  const filePath = args.length === 2 ? args[1] : args[0];
 
   if (!fs.existsSync(filePath)) {
     console.error(`File not found: ${filePath}`);
@@ -61,6 +55,13 @@ const main = () => {
   } else if (option === "-m") {
     const charCount = getCharCount(filePath);
     console.log(`${charCount} ${path.basename(filePath)}`);
+  } else if (option === "-default") {
+    const byteCount = getByteCount(filePath);
+    const lineCount = getLineCount(filePath);
+    const wordCount = getWordCount(filePath);
+    console.log(
+      `${lineCount} ${wordCount} ${byteCount} ${path.basename(filePath)}`
+    );
   } else {
     throw new Error("Invalid option");
   }
