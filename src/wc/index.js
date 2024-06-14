@@ -11,7 +11,7 @@ const getFileStats = async (filePath) => {
     const chars = [...fileContent];
 
     return {
-      byteCount: fileSizeInBytes,
+      fileSizeInBytes,
       lineCount: lines.length,
       wordCount: words.length,
       charCount: chars.length,
@@ -22,35 +22,57 @@ const getFileStats = async (filePath) => {
   }
 };
 
+const readFromStdin = async (stream) => {
+  let content = "";
+  stream.setEncoding("utf8");
+
+  for await (const chunk of stream) {
+    content += chunk;
+  }
+
+  return content;
+};
+
 const displayUsage = () => {
   console.log("Usage: -c|-l|-w|-m <file>");
 };
 
-const main = async () => {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0 || args.length > 2) {
+const validateAndExtractArgs = (argv) => {
+  if (argv.length === 0 || argv.length > 4) {
     displayUsage();
     process.exit(1);
   }
+};
 
-  const option = args.length === 2 ? args[0] : "-default";
-  const filePath = args.length === 2 ? args[1] : args[0];
+const getFilePathAndOption = (argv) => {
+  const args = argv.slice(2);
 
+  let option =
+    args.length === 2 ? args[0] : args.length === 1 ? args[0] : "-default";
+  let filePath =
+    args.length === 2 ? args[1] : args.length === 1 ? argv[1] : args[0];
+
+  return {
+    option,
+    filePath,
+  };
+};
+
+const checkFileExistOrNot = async (filePath) => {
   try {
     await fs.accessSync(filePath);
   } catch {
     console.error(`File not found: ${filePath}`);
     process.exit(1);
   }
+};
 
-  const { byteCount, lineCount, wordCount, charCount } = await getFileStats(
-    filePath
-  );
+const printFileStatsBasedOnOption = (filePath, option, fileStats) => {
+  const { fileSizeInBytes, lineCount, wordCount, charCount } = fileStats;
 
   switch (option) {
     case "-c":
-      console.log(`${byteCount} ${path.basename(filePath)}`);
+      console.log(`${fileSizeInBytes} ${path.basename(filePath)}`);
       break;
     case "-l":
       console.log(`${lineCount} ${path.basename(filePath)}`);
@@ -63,7 +85,9 @@ const main = async () => {
       break;
     case "-default":
       console.log(
-        `${lineCount} ${wordCount} ${byteCount} ${path.basename(filePath)}`
+        `${lineCount} ${wordCount} ${fileSizeInBytes} ${path.basename(
+          filePath
+        )}`
       );
       break;
     default:
@@ -72,4 +96,39 @@ const main = async () => {
   }
 };
 
-main();
+const main = async (argv, stream) => {
+  const isThereStream = !stream.isTTY;
+  if (isThereStream) {
+    try {
+      const fileContent = await readFromStdin(stream);
+      const lines = fileContent.split("\n");
+      const words = fileContent.split(/\s+/).filter(Boolean);
+      const chars = [...fileContent];
+
+      const { option, filePath } = getFilePathAndOption(argv);
+      console.log(filePath);
+      const fileStats = {
+        fileSizeInBytes: Buffer.byteLength(fileContent),
+        lineCount: lines.length,
+        wordCount: words.length,
+        charCount: chars.length,
+      };
+      printFileStatsBasedOnOption(filePath, option, fileStats);
+    } catch (err) {
+      if (!(err instanceof TypeError)) {
+        throw err;
+      }
+    }
+  } else {
+    validateAndExtractArgs(argv);
+    const { option, filePath } = getFilePathAndOption(argv);
+    await checkFileExistOrNot(filePath);
+    const fileStats = await getFileStats(filePath);
+    printFileStatsBasedOnOption(filePath, option, fileStats);
+    if (typeof stream === "undefined") {
+      throw new Error("Invalid file");
+    }
+  }
+};
+
+await main(process.argv, process.stdin);
